@@ -32,10 +32,15 @@ set(MLX_BUILD_PYTHON_BINDINGS OFF)
 if(MLX_C_USE_SYSTEM_MLX)
   find_package(MLX REQUIRED)
 else()
+  # Local fork: upstream ml-explore/mlx v0.31.1 + cherry-picked PrismML 1-bit
+  # affine quantization commits (784203f, d155e95, 644a8cd). Required for
+  # 1.25-bpw model loaders (e.g. higgs Bonsai-Q1). The branch sits on top of
+  # an upstream commit predating Shape/FFTNorm refactors so the v0.6.0-3 C
+  # bindings remain ABI-compatible.
   FetchContent_Declare(
     mlx
-    GIT_REPOSITORY "https://github.com/ml-explore/mlx.git"
-    GIT_TAG v0.31.1)
+    GIT_REPOSITORY "https://github.com/dusterbloom/mlx.git"
+    GIT_TAG 06ee46cbb98012322c94d14646e69cb305bf27c5)
   FetchContent_MakeAvailable(mlx)
 endif()
 
