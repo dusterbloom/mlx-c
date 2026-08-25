@@ -33,6 +33,11 @@ mlx_stream mlx_stream_new(void);
  * Returns a new stream on a device.
  */
 mlx_stream mlx_stream_new_device(mlx_device dev);
+
+/**
+ * Returns a new stream whose command encoder is shared across threads.
+ */
+mlx_stream mlx_stream_new_thread_unsafe(void);
 /**
  * Set stream to provided src stream.
  */
