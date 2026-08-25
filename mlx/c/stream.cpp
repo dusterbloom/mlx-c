@@ -1,6 +1,8 @@
 /* Copyright © 2023-2024 Apple Inc. */
 
 #include <cstring>
+#include <mutex>
+#include <unordered_map>
 
 #include "mlx/c/device.h"
 #include "mlx/c/error.h"
@@ -92,7 +94,24 @@ extern "C" int mlx_synchronize(mlx_stream stream) {
 }
 extern "C" int mlx_get_default_stream(mlx_stream* stream, mlx_device dev) {
   try {
-    mlx_stream_set_(*stream, mlx::core::default_stream(mlx_device_get_(dev)));
+    // MLX >= 0.32 keeps per-thread default streams and thread-local command
+    // encoders, so arrays created under one thread's ambient default can no
+    // longer be encoded on another. Restore pre-0.32 semantics: one ambient
+    // default per device, registered in the global encoder map via
+    // new_thread_unsafe_stream. Safe only if callers serialize encoding (the
+    // embedder is expected to gate GPU eval, e.g. higgs's GPU_GATE).
+    static std::mutex ambient_mtx;
+    static std::unordered_map<int, mlx::core::Stream> ambient;
+    auto d = mlx_device_get_(dev);
+    int key = static_cast<int>(d.type) * 8 + d.index;
+    std::lock_guard<std::mutex> lock(ambient_mtx);
+    auto it = ambient.find(key);
+    if (it == ambient.end()) {
+      it = ambient
+               .emplace(key, mlx::core::new_thread_unsafe_stream(d))
+               .first;
+    }
+    mlx_stream_set_(*stream, it->second);
     return 0;
   } catch (std::exception& e) {
     mlx_error(e.what());
